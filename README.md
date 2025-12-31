@@ -4,19 +4,17 @@ aruco_ros
 Software package and ROS wrappers of the [Aruco][1] Augmented Reality marker detector library.
 
 
-### Features
-```bash
-ros2 run aruco_ros stereo --ros-args \
-    -p marker_size:=0.05 \
-    -p marker_id:=582 \
-    -r /left/image_rect_color:=/your_camera/left/image_rect \
-    -r /right/image_rect_color:=/your_camera/right/image_rect \
-    -r /left/camera_info:=/your_camera/left/camera_info \
-    -r /right/camera_info:=/your_camera/right/camera_info
+### Images
+```bash 
+ros2 launch realsense2_camera rs_launch.py     enable_infra1:=true     enable_infra2:=true     enable_color:=false     enable_depth:=false     depth_module.infra_profile:=1280x800x30     depth_module.emitter_on_off:=false
 ```
 
 
-### Applications
+### Calibs
+
+```bash
+python3 ~/ros2_ws/src/cube_pose_fuser/scripts/camera_info_override.py --ros-args     -p camera_name:=infra1     -p camera_info_url:=file:///home/nvidia/ros2_ws/src/cube_pose_fuser/calib_data/infra1.yaml     -p image_topic:=/camera/camera/infra1/image_rect_raw     -p camera_info_topic:=/camera/camera/infra1/camera_info_calib
+```
 
  * Object pose estimation
  * Visual servoing: track object and hand at the same time
@@ -24,63 +22,15 @@ ros2 run aruco_ros stereo --ros-args \
 <img align="right" src="https://raw.github.com/pal-robotics/aruco_ros/master/aruco_ros/etc/reem_gazebo_floating_marker_world.png"/>
 
 
-### ROS API
+### Scan dual_camera aruco
 
-#### Messages
+```bash
+source install/setup.bash
+ros2 launch aruco_ros apriltag_stereo_launch.py
+```
 
- * aruco_ros/Marker.msg
-
-        Header header
-        uint32 id
-        geometry_msgs/PoseWithCovariance pose
-        float64 confidence
-
- * aruco_ros/MarkerArray.msg
-
-        Header header
-        aruco_ros/Marker[] markers
-
-### Kinetic changes
-
-* Updated the [Aruco][1] library to version 3.0.4
-
-* Changed the coordinate system to match the library's, the convention is shown
-  in the image below, following rviz conventions, X is red, Y is green and Z is
-  blue.
-<img align="bottom" src="/aruco_ros/etc/new_coordinates.png"/>
-
-### Test it with REEM
-
- * Open a REEM in simulation with a marker floating in front of the robot. This will start the stereo cameras of the robot too. Since this is only a vision test, there is nothing else in this world apart from the robot and a marker floating in front of it. An extra light source had to be added to compensate for the default darkness.
-
-    ```
-    roslaunch reem_gazebo reem_gazebo.launch world:=floating_marker
-    ```
- * Launch the `image_proc` node to get undistorted images from the cameras of the robot.
- 
-    ```
-    ROS_NAMESPACE=/stereo/right rosrun image_proc image_proc image_raw:=image
-    ```
- * Start the `single` node which will start tracking the specified marker and will publish its pose in the camera frame
- 
-    ```
-    roslaunch aruco_ros single.launch markerId:=26 markerSize:=0.08 eye:="right"
-    ```
-
-    the frame in which the pose is refered to can be chosen with the 'ref_frame' argument. The next example forces the marker pose to
-    be published with respect to the robot base_link frame:
-
-    ```
-    roslaunch aruco_ros single.launch markerId:=26 markerSize:=0.08 eye:="right" ref_frame:=/base_link
-    ```
-    
- * Visualize the result
- 
-    ```    
-    rosrun image_view image_view image:=/aruco_single/result
-    ```
-
-<img align="right" src="https://raw.github.com/pal-robotics/aruco_ros/master/aruco_ros/etc/reem_gazebo_floating_marker.png"/>
-
-
-[1]: http://www.sciencedirect.com/science/article/pii/S0031320314000235 "Automatic generation and detection of highly reliable fiducial markers under occlusion by S. Garrido-Jurado and R. Muñoz-Salinas and F.J. Madrid-Cuevas and M.J. Marín-Jiménez 2014"
+### Get data 
+```bash
+ros2 topic echo /detections 
+ros2 run rqt_image_view rqt_image_view
+```
