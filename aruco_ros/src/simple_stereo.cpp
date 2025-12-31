@@ -76,6 +76,7 @@ public:
     //////////////////////////*************************** *//////////////////////////////
     this->declare_parameter<std::string>("udp_ip", "192.168.1.100");
     this->declare_parameter<int>("udp_port", 8888);
+    this->declare_parameter<double>("udp_send_rate_hz", 15.0);
 
     // AprilTag 检测参数
     this->declare_parameter<int>("apriltag_threads", 4);
@@ -96,6 +97,12 @@ public:
     int udp_port;
     this->get_parameter("udp_ip", udp_ip);
     this->get_parameter("udp_port", udp_port);
+    this->get_parameter("udp_send_rate_hz", udp_send_rate_hz_);
+    if (udp_send_rate_hz_ > 0.0) {
+      udp_send_min_interval_ns_ = static_cast<uint64_t>(1e9 / udp_send_rate_hz_);
+    } else {
+      udp_send_min_interval_ns_ = 0;
+    }
     udp_sender_ = std::make_unique<aruco_ros::UdpSender>(udp_ip, udp_port);
 
     int tag_threads = 4;
@@ -122,6 +129,11 @@ public:
                 (this->get_name() + std::string("/debug_left")).c_str(),
                 (this->get_name() + std::string("/debug_right")).c_str());
     RCLCPP_INFO(this->get_logger(), "UDP Sender initialized to %s:%d", udp_ip.c_str(), udp_port);
+    if (udp_send_min_interval_ns_ > 0) {
+      RCLCPP_INFO(this->get_logger(), "UDP send rate limit: %.2f Hz", udp_send_rate_hz_);
+    } else {
+      RCLCPP_INFO(this->get_logger(), "UDP send rate limit: disabled");
+    }
 
     // 初始化 AprilTag detector + family(Standard41h12)
     tag_family_ = tagStandard41h12_create();
@@ -241,6 +253,9 @@ private:
 
   std::unique_ptr<aruco_ros::UdpSender> udp_sender_;
   uint32_t packet_seq_{0};
+  double udp_send_rate_hz_{15.0};
+  uint64_t udp_send_min_interval_ns_{0};
+  uint64_t last_udp_send_ts_ns_{0};
 
   // AprilTag detector
   apriltag_family_t* tag_family_{nullptr};
@@ -519,14 +534,23 @@ private:
       RCLCPP_INFO(this->get_logger(), "Stereo Tags: %s", ss.str().c_str());
 
       // UDP Send
-      std::vector<aruco_ros::TagData> tags_data;
-      tags_data.reserve(frame_results.size());
-      for (const auto& res : frame_results) {
-          tags_data.push_back({res.id, res.pos, res.rot});
-      }
       uint64_t ts_ns = static_cast<uint64_t>(left_img_msg->header.stamp.sec) * 1000000000ULL + 
                        static_cast<uint64_t>(left_img_msg->header.stamp.nanosec);
-      udp_sender_->sendData(tags_data, packet_seq_++, ts_ns);
+      bool should_send = true;
+      if (udp_send_min_interval_ns_ > 0 && last_udp_send_ts_ns_ > 0 &&
+          ts_ns > last_udp_send_ts_ns_ &&
+          (ts_ns - last_udp_send_ts_ns_) < udp_send_min_interval_ns_) {
+        should_send = false;
+      }
+      if (should_send) {
+        std::vector<aruco_ros::TagData> tags_data;
+        tags_data.reserve(frame_results.size());
+        for (const auto& res : frame_results) {
+            tags_data.push_back({res.id, res.pos, res.rot});
+        }
+        last_udp_send_ts_ns_ = ts_ns;
+        udp_sender_->sendData(tags_data, packet_seq_++, ts_ns);
+      }
     }
 
     // 发布调试图像：1) 原debug：左图 + 红框 + 坐标轴；2) 新增左右话题：仅红框
