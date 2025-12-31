@@ -114,13 +114,22 @@ void UdpSender::sendData(const std::vector<TagData>& tags, uint32_t seq, uint64_
         buffer.insert(buffer.end(), p, p + 4);
     }
 
-    ssize_t sent_bytes = sendto(sockfd_, buffer.data(), buffer.size(), 0, 
+    // Encode payload as ASCII hex (two chars per byte).
+    std::string hex_payload;
+    hex_payload.reserve(buffer.size() * 2);
+    static const char kHexDigits[] = "0123456789ABCDEF";
+    for (uint8_t b : buffer) {
+        hex_payload.push_back(kHexDigits[(b >> 4) & 0x0F]);
+        hex_payload.push_back(kHexDigits[b & 0x0F]);
+    }
+
+    ssize_t sent_bytes = sendto(sockfd_, hex_payload.data(), hex_payload.size(), 0, 
            (const struct sockaddr *)&servaddr_, sizeof(servaddr_));
     
     if (sent_bytes < 0) {
         std::cerr << "UDP sendto failed. Error: " << strerror(errno) << " (errno: " << errno << ")" << std::endl;
-    } else if (static_cast<size_t>(sent_bytes) != buffer.size()) {
-        std::cerr << "UDP sendto incomplete. Sent " << sent_bytes << " of " << buffer.size() << " bytes." << std::endl;
+    } else if (static_cast<size_t>(sent_bytes) != hex_payload.size()) {
+        std::cerr << "UDP sendto incomplete. Sent " << sent_bytes << " of " << hex_payload.size() << " bytes." << std::endl;
     }
 }
 
