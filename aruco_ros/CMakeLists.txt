@@ -61,10 +61,12 @@ target_include_directories(single
 )
 ament_target_dependencies(single ${THIS_PACKAGE_INCLUDE_DEPENDS})
 target_link_libraries(single ${OpenCV_LIBRARIES})
-
+add_executable(serial_test src/serial_test.cpp)
+ament_target_dependencies(serial_test rclcpp)
 add_executable(stereo src/simple_stereo.cpp
                       src/aruco_ros_utils.cpp
-                      src/udp_sender.cpp)
+                      src/udp_sender.cpp
+                      src/serial_sender.cpp)
 
 target_include_directories(stereo
   PUBLIC
@@ -122,7 +124,7 @@ install(TARGETS aruco_ros_utils
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin)
 
-install(TARGETS marker_publisher single double stereo
+install(TARGETS marker_publisher single double stereo serial_test
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY include/
@@ -136,5 +138,6 @@ foreach(dir etc launch)
 endforeach()
 
 ament_package()
+
 
 

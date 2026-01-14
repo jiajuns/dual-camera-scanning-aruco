@@ -5,21 +5,21 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 def generate_launch_description():
-    udp_ip_arg = DeclareLaunchArgument(
-        'udp_ip', default_value='192.168.1.100',
-        description='Target UDP IP address')
+    serial_port_arg = DeclareLaunchArgument(
+        'serial_port', default_value='/dev/ttyUSB0',
+        description='Target Serial Port')
     
-    udp_port_arg = DeclareLaunchArgument(
-        'udp_port', default_value='8888',
-        description='Target UDP port')
+    baud_rate_arg = DeclareLaunchArgument(
+        'baud_rate', default_value='115200',
+        description='Serial Baud Rate')
 
     udp_rate_arg = DeclareLaunchArgument(
-        'udp_rate', default_value='15.0',
-        description='UDP send rate in Hz')
+        'udp_rate', default_value='0.0',
+        description='UDP send rate in Hz (0.0 to disable limit)')
 
     return LaunchDescription([
-        udp_ip_arg,
-        udp_port_arg,
+        serial_port_arg,
+        baud_rate_arg,
         udp_rate_arg,
         Node(
             package='aruco_ros',
@@ -32,16 +32,16 @@ def generate_launch_description():
                 'apriltag_threads': 1,          # 使用1线程
                 'apriltag_refine_edges': True,  # 提高角点精度
                 'camera_frame': 'left_camera_optical_frame',
-                'udp_ip': LaunchConfiguration('udp_ip'),
-                'udp_port': LaunchConfiguration('udp_port'),
+                'serial_port': LaunchConfiguration('serial_port'),
+                'baud_rate': LaunchConfiguration('baud_rate'),
                 'udp_send_rate_hz': LaunchConfiguration('udp_rate'),
             }],
             remappings=[
                 # 将代码里的默认话题映射到你相机的实际话题
-                ('/left/image_rect_color', '/your_camera/left/image_rect'),
-                ('/right/image_rect_color', '/your_camera/right/image_rect'),
-                ('/left/camera_info', '/your_camera/left/camera_info'),
-                ('/right/camera_info', '/your_camera/right/camera_info'),
+                ('/left/image_rect_color', '/camera/camera/infra1/image_rect_raw'),
+                ('/right/image_rect_color', '/camera/camera/infra2/image_rect_raw'),
+                ('/left/camera_info', '/camera/camera/infra1/camera_info'),
+                ('/right/camera_info', '/camera/camera/infra2/camera_info'),
             ]
         )
     ])
