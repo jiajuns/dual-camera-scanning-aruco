@@ -29,11 +29,6 @@ source install/setup.bash
 ros2 launch aruco_ros apriltag_stereo_launch.py
 ```
 
-#### Latest start
-
-```bash
-ros2 launch aruco_ros apriltag_stereo_launch.py
-```
 ### Get data 
 ```bash
 ros2 topic echo /detections 
